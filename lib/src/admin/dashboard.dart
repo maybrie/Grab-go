@@ -3,6 +3,7 @@ import '../app_state.dart';
 import '../db.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'admin_widgets.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key, required this.onOpenStalls, required this.onOpenAccounts, required this.onOpenReports});
@@ -47,45 +48,70 @@ class AdminDashboardScreen extends StatelessWidget {
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 2, 18, 22),
+            padding: const EdgeInsets.fromLTRB(18, 10, 18, 26),
             children: [
-              Text('Today · ${shortDateYear(now)}', style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 12),
+              AdminHero(
+                greeting: 'Canteen overview',
+                headline: 'Good ${_timeOfDay(now)}, Admin',
+                caption: 'A quick look at today’s orders, sales and pickup activity across the campus.',
+                dateLabel: 'TODAY · ${shortDateYear(now)}',
+              ),
+              const SizedBox(height: 18),
 
               // Stat grid
               GridView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisExtent: 88, crossAxisSpacing: 10, mainAxisSpacing: 10),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisExtent: 100, crossAxisSpacing: 10, mainAxisSpacing: 10),
                 children: [
-                  _statCard('ORDERS', '${ordersToday.length}', AppColors.ink),
-                  _statCard('SALES', peso(salesToday), AppColors.ink),
-                  _statCard('CLAIMED', '$claimed', AppColors.greenDark),
-                  _statCard('NO-SHOWS', '${noShow.toStringAsFixed(0)}%', noShow > 0 ? AppColors.redDark : AppColors.ink),
+                  AdminStatTile(label: 'Orders today', value: '${ordersToday.length}', icon: Icons.receipt_long_rounded, tint: AppColors.blueSoft, foreground: const Color(0xFF1D4ED8), subtitle: 'placed so far'),
+                  AdminStatTile(label: 'Sales today', value: peso(salesToday), icon: Icons.payments_rounded, tint: AppColors.yellowSoft, foreground: AppColors.yellowOnSoft, subtitle: 'cash collected'),
+                  AdminStatTile(label: 'Claimed', value: '$claimed', icon: Icons.verified_rounded, tint: AppColors.greenSoft, foreground: AppColors.greenDark, subtitle: 'handed over'),
+                  AdminStatTile(label: 'No-shows', value: '${noShow.toStringAsFixed(0)}%', icon: Icons.event_busy_rounded, tint: noShow > 0 ? AppColors.redSoft : AppColors.pageSoft, foreground: noShow > 0 ? AppColors.redDark : AppColors.muted, subtitle: 'released orders'),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 22),
 
               // Quick actions
+              const AdminSectionTitle(title: 'Quick actions', subtitle: 'Go straight to the tools you need'),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  _quickAction(Icons.storefront_outlined, 'Manage stalls', onOpenStalls),
+                  AdminQuickCard(label: 'Manage stalls', icon: Icons.storefront_rounded, tint: AppColors.yellowSoft, foreground: AppColors.yellowOnSoft, onTap: onOpenStalls),
                   const SizedBox(width: 8),
-                  _quickAction(Icons.group_outlined, 'Accounts', onOpenAccounts),
+                  AdminQuickCard(label: 'Accounts', icon: Icons.group_rounded, tint: AppColors.greenSoft, foreground: AppColors.greenDark, onTap: onOpenAccounts),
                   const SizedBox(width: 8),
-                  _quickAction(Icons.bar_chart_rounded, 'Reports', onOpenReports),
+                  AdminQuickCard(label: 'Reports', icon: Icons.bar_chart_rounded, tint: AppColors.blueSoft, foreground: const Color(0xFF1D4ED8), onTap: onOpenReports),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 22),
 
               // Sales today by stall
-              const Text('Sales today by stall', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: -0.2)),
+              const AdminSectionTitle(title: 'Sales today by stall', subtitle: 'Collected cash, ranked by stall'),
               const SizedBox(height: 10),
-              if (selling.isEmpty)
-                const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text('No sales yet today.', style: TextStyle(fontSize: 12.5, color: AppColors.muted)))
-              else
-                for (final e in selling) ReportBar(label: e.key.name, valueLabel: peso(e.value), fraction: e.value / (maxSale == 0 ? 1 : maxSale), labelWidth: 120),
-              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.line), boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 12, offset: Offset(0, 4))]),
+                child: selling.isEmpty
+                    ? const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text('No sales yet today.', style: TextStyle(fontSize: 12.5, color: AppColors.muted)))
+                    : Column(
+                        children: [
+                          for (final e in selling) ReportBar(label: e.key.name, valueLabel: peso(e.value), fraction: e.value / (maxSale == 0 ? 1 : maxSale), labelWidth: 120),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: AppColors.pageSoft, borderRadius: BorderRadius.circular(16)),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 16, color: AppColors.muted),
+                    SizedBox(width: 10),
+                    Expanded(child: Text('Cash is counted as earnings only when the stall marks an order claimed at pickup.', style: TextStyle(fontSize: 11, color: AppColors.muted, height: 1.4))),
+                  ],
+                ),
+              ),
             ],
           ),
         );
@@ -93,30 +119,10 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _quickAction(IconData icon, String label, VoidCallback onTap) {
-    return Expanded(
-      child: OutlinedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 17),
-        label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-        style: OutlinedButton.styleFrom(foregroundColor: AppColors.navy900, side: const BorderSide(color: AppColors.line), padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-      ),
-    );
-  }
-
-  Widget _statCard(String label, String value, Color valueColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.line)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: AppColors.muted)),
-          const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.6, color: valueColor)),
-        ],
-      ),
-    );
+  String _timeOfDay(DateTime now) {
+    final h = now.hour;
+    if (h < 12) return 'morning';
+    if (h < 17) return 'afternoon';
+    return 'evening';
   }
 }
